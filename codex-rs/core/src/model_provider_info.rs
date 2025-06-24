@@ -251,4 +251,21 @@ mod tests {
             }
         }
     }
+    
+    #[test]
+    fn test_gemini_provider_specific_configuration() {
+        let providers = built_in_model_providers();
+        let gemini = providers.get("gemini").expect("Gemini provider should be available");
+        
+        // Verify Gemini-specific configuration
+        assert_eq!(gemini.name, "Gemini");
+        assert_eq!(gemini.base_url, "https://generativelanguage.googleapis.com/v1beta/openai");
+        assert_eq!(gemini.env_key, Some("GEMINI_API_KEY".to_string()));
+        assert_eq!(gemini.wire_api, WireApi::Chat);
+        
+        // Verify that Gemini uses the Chat wire API (not Responses like OpenAI)
+        let openai = providers.get("openai").expect("OpenAI provider should be available");
+        assert_eq!(openai.wire_api, WireApi::Responses);
+        assert_ne!(gemini.wire_api, openai.wire_api, "Gemini should use Chat API, not Responses API");
+    }
 }
