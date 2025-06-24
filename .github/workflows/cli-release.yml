@@ -1,0 +1,168 @@
+# Release workflow for codex-cli.
+# To release, follow a workflow like:
+# ```
+# git tag -a cli-v0.1.0 -m "Release CLI 0.1.0"
+# git push origin cli-v0.1.0
+# ```
+
+name: cli-release
+on:
+  push:
+    tags:
+      - "cli-v*.*.*"
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  TAG_REGEX: '^cli-v[0-9]+\.[0-9]+\.[0-9]+$'
+
+jobs:
+  tag-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate tag matches package.json version
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "::group::Tag validation"
+
+          # 1. Must be a tag and match the regex
+          [[ "${GITHUB_REF_TYPE}" == "tag" ]] \
+            || { echo "❌  Not a tag push"; exit 1; }
+          [[ "${GITHUB_REF_NAME}" =~ ${TAG_REGEX} ]] \
+            || { echo "❌  Tag '${GITHUB_REF_NAME}' != ${TAG_REGEX}"; exit 1; }
+
+          # 2. Extract versions
+          tag_ver="${GITHUB_REF_NAME#cli-v}"
+          package_ver="$(grep -m1 '"version"' codex-cli/package.json \
+                        | sed -E 's/.*"version": *"([^"]+)".*/\1/')"
+
+          # 3. Compare
+          [[ "${tag_ver}" == "${package_ver}" ]] \
+            || { echo "❌  Tag ${tag_ver} ≠ package.json ${package_ver}"; exit 1; }
+
+          echo "✅  Tag and package.json agree (${tag_ver})"
+          echo "::endgroup::"
+
+  build-and-release:
+    needs: tag-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "store_path=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.store_path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build package
+        run: pnpm run build
+
+      - name: Run tests
+        run: pnpm run test
+
+      - name: Stage standard release
+        working-directory: codex-cli
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RELEASE_DIR=$(mktemp -d)
+          echo "STANDARD_RELEASE_DIR=$RELEASE_DIR" >> $GITHUB_ENV
+          ./scripts/stage_release.sh --tmp "$RELEASE_DIR"
+
+      - name: Test standard release
+        run: |
+          echo "Testing standard release package..."
+          cd "$STANDARD_RELEASE_DIR"
+          # Basic validation that the package was created correctly
+          test -f package.json || { echo "❌ package.json missing"; exit 1; }
+          test -f bin/codex.js || { echo "❌ bin/codex.js missing"; exit 1; }
+          test -d dist || { echo "❌ dist directory missing"; exit 1; }
+          echo "✅ Standard package validation passed"
+
+      - name: Stage native release (allow failure)
+        working-directory: codex-cli
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RELEASE_DIR=$(mktemp -d)
+          echo "NATIVE_RELEASE_DIR=$RELEASE_DIR" >> $GITHUB_ENV
+          if ./scripts/stage_release.sh --tmp "$RELEASE_DIR" --native; then
+            echo "NATIVE_RELEASE_SUCCESS=true" >> $GITHUB_ENV
+            echo "✅ Native release staged successfully"
+          else
+            echo "NATIVE_RELEASE_SUCCESS=false" >> $GITHUB_ENV
+            echo "⚠️  Native release failed, continuing with standard release only"
+          fi
+
+      - name: Publish standard package to npm
+        working-directory: ${{ env.STANDARD_RELEASE_DIR }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish
+
+      - name: Publish native package to npm (if available)
+        if: env.NATIVE_RELEASE_SUCCESS == 'true'
+        working-directory: ${{ env.NATIVE_RELEASE_DIR }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --tag native
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: CLI Release ${{ github.ref_name }}
+          body: |
+            CLI release ${{ github.ref_name }}
+
+            ## Installation
+
+            Standard package:
+            ```bash
+            npm install @openai/codex@${{ github.ref_name }}
+            ```
+
+            ${{ env.NATIVE_RELEASE_SUCCESS == 'true' && format('Native package (includes Rust binaries):
+            ```bash
+            npm install @openai/codex@{0} --tag native
+            ```', github.ref_name) || '⚠️ Native package was not available for this release.' }}
+
+            ## Changes
+
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/CHANGELOG.md) for details.
+          files: |
+            ${{ env.STANDARD_RELEASE_DIR }}/package.json
+          prerelease: false
