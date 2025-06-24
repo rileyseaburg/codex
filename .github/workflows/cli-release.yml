@@ -1,3 +1,4 @@
+---
 # Release workflow for codex-cli.
 # To release, follow a workflow like:
 # ```
@@ -6,7 +7,7 @@
 # ```
 
 name: cli-release
-on:
+"on":
   push:
     tags:
       - "cli-v*.*.*"
@@ -39,11 +40,12 @@ jobs:
           # 2. Extract versions
           tag_ver="${GITHUB_REF_NAME#cli-v}"
           package_ver="$(grep -m1 '"version"' codex-cli/package.json \
-                        | sed -E 's/.*"version": *"([^"]+)".*/\1/')"
+            | sed -E 's/.*"version": *"([^"]+)".*/\1/')"
 
           # 3. Compare
           [[ "${tag_ver}" == "${package_ver}" ]] \
-            || { echo "❌  Tag ${tag_ver} ≠ package.json ${package_ver}"; exit 1; }
+            || { echo "❌  Tag ${tag_ver} ≠ package.json ${package_ver}"; \
+                 exit 1; }
 
           echo "✅  Tag and package.json agree (${tag_ver})"
           echo "::endgroup::"
@@ -155,10 +157,12 @@ jobs:
             npm install @openai/codex@${{ github.ref_name }}
             ```
 
-            ${{ env.NATIVE_RELEASE_SUCCESS == 'true' && format('Native package (includes Rust binaries):
+            ${{ env.NATIVE_RELEASE_SUCCESS == 'true' &&
+                format('Native package (includes Rust binaries):
             ```bash
             npm install @openai/codex@{0} --tag native
-            ```', github.ref_name) || '⚠️ Native package was not available for this release.' }}
+            ```', github.ref_name) ||
+                '⚠️ Native package was not available for this release.' }}
 
             ## Changes
 
