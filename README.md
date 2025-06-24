@@ -652,7 +652,30 @@ The **DCO check** blocks merges until every commit in the PR carries the footer 
 
 ### Releasing `codex`
 
-To publish a new version of the CLI you first need to stage the npm package. A
+#### Automated Release (Recommended)
+
+For automated releases, use the CI/CD pipeline by creating a version tag:
+
+```bash
+# Update the version in codex-cli/package.json first
+cd codex-cli
+npm version 0.1.0  # or your desired version
+
+# Create and push the release tag
+git tag -a cli-v0.1.0 -m "Release CLI 0.1.0"
+git push origin cli-v0.1.0
+```
+
+This will trigger the `cli-release` workflow which:
+
+- Builds and tests the package
+- Creates both standard and native npm packages (if Rust artifacts are available)
+- Publishes to npm registry
+- Creates a GitHub release
+
+#### Manual Release
+
+To manually publish a new version of the CLI you first need to stage the npm package. A
 helper script in `codex-cli/scripts/` does all the heavy lifting. Inside the
 `codex-cli` folder run:
 
