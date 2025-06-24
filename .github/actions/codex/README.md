@@ -113,6 +113,16 @@ If set, the value to use for the `$CODEX_HOME` environment variable when running
 
 This should be a relative path within your repo.
 
+### `copilot_agent_firewall_enabled`
+
+Whether to enable the Copilot agent firewall. Defaults to `true`. Set to `false` to disable the firewall and allow access to GitHub API endpoints and repositories.
+
+**Security Warning:** Disabling the firewall allows Codex to connect to any host, which increases risks of exfiltration of code or other sensitive information. This trade-off may be necessary to enable full functionality for development and CI/CD operations that require access to GitHub APIs, artifact downloads, and workflow operations.
+
+```yaml
+copilot_agent_firewall_enabled: false
+```
+
 ## Prompt Template Variables
 
 As shown above, `"prompt"` and `"promptPath"` are used to define prompt templates that will be populated and passed to Codex in response to certain events. All template variables are of the form `{CODEX_ACTION_...}` and the supported values are defined below.
