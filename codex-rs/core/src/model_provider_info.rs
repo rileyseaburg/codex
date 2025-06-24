@@ -164,8 +164,91 @@ pub fn built_in_model_providers() -> HashMap<String, ModelProviderInfo> {
                 wire_api: WireApi::Chat,
             },
         ),
+        (
+            "azure",
+            P {
+                name: "AzureOpenAI".into(),
+                base_url: "https://YOUR_PROJECT_NAME.openai.azure.com/openai".into(),
+                env_key: Some("AZURE_OPENAI_API_KEY".into()),
+                env_key_instructions: None,
+                wire_api: WireApi::Chat,
+            },
+        ),
+        (
+            "arceeai",
+            P {
+                name: "ArceeAI".into(),
+                base_url: "https://conductor.arcee.ai/v1".into(),
+                env_key: Some("ARCEEAI_API_KEY".into()),
+                env_key_instructions: None,
+                wire_api: WireApi::Chat,
+            },
+        ),
     ]
     .into_iter()
     .map(|(k, v)| (k.to_string(), v))
     .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_all_expected_providers_are_defined() {
+        let providers = built_in_model_providers();
+        
+        // These providers should match the ones defined in codex-cli/src/utils/providers.ts
+        let expected_providers = [
+            "openai",
+            "openrouter", 
+            "azure",
+            "gemini",
+            "ollama",
+            "mistral",
+            "deepseek",
+            "xai",
+            "groq",
+            "arceeai",
+        ];
+        
+        for provider in expected_providers {
+            assert!(
+                providers.contains_key(provider),
+                "Missing provider: {}. All providers from TypeScript CLI must be available in Rust core.",
+                provider
+            );
+        }
+        
+        // Ensure gemini is properly configured
+        let gemini = providers.get("gemini").unwrap();
+        assert_eq!(gemini.name, "Gemini");
+        assert_eq!(gemini.base_url, "https://generativelanguage.googleapis.com/v1beta/openai");
+        assert_eq!(gemini.env_key, Some("GEMINI_API_KEY".to_string()));
+        assert_eq!(gemini.wire_api, WireApi::Chat);
+    }
+
+    #[test]
+    fn test_provider_configurations_are_valid() {
+        let providers = built_in_model_providers();
+        
+        for (name, provider) in providers {
+            // All providers should have a non-empty name
+            assert!(!provider.name.is_empty(), "Provider {} has empty name", name);
+            
+            // All providers should have a valid base URL
+            assert!(!provider.base_url.is_empty(), "Provider {} has empty base_url", name);
+            assert!(
+                provider.base_url.starts_with("http://") || provider.base_url.starts_with("https://"),
+                "Provider {} has invalid base_url: {}",
+                name,
+                provider.base_url
+            );
+            
+            // If env_key is set, it should not be empty
+            if let Some(ref env_key) = provider.env_key {
+                assert!(!env_key.is_empty(), "Provider {} has empty env_key", name);
+            }
+        }
+    }
 }
