@@ -198,6 +198,27 @@ The hardening mechanism Codex uses depends on your OS:
   OpenAI API. This gives you deterministic, reproducible runs without needing
   root on the host. You can use the [`run_in_container.sh`](./codex-cli/scripts/run_in_container.sh) script to set up the sandbox.
 
+### Firewall configuration
+
+For GitHub Actions and CI/CD environments that need access to GitHub API endpoints and repositories, the Copilot agent firewall can be disabled by setting the `COPILOT_AGENT_FIREWALL_ENABLED` environment variable to `false`. This is particularly useful when Codex needs to:
+
+- Make `curl` requests to `https://api.github.com/repos/*/releases/latest`
+- Use `gh run download` commands for artifacts
+- Access API endpoints like `https://api.github.com/repos/*/actions/runs` and workflows
+
+**Security Warning:** Disabling the firewall allows Codex to connect to any host, which increases risks of exfiltration of code or other sensitive information. This trade-off may be necessary to enable full functionality for development and CI/CD operations.
+
+Example GitHub Actions workflow configuration:
+
+```yaml
+- name: Run Codex
+  uses: ./.github/actions/codex
+  with:
+    openai_api_key: ${{ secrets.CODEX_OPENAI_API_KEY }}
+    github_token: ${{ secrets.GITHUB_TOKEN }}
+    copilot_agent_firewall_enabled: false
+```
+
 ---
 
 ## System requirements

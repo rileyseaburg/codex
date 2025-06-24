@@ -23,6 +23,10 @@ inputs:
     description: "The release tag of the Codex model to run."
     required: false
     default: "codex-rs-ca8e97fcbcb991e542b8689f2d4eab9d30c399d6-1-rust-v0.0.2505302325"
+  copilot_agent_firewall_enabled:
+    description: "Whether to enable the Copilot agent firewall. Set to 'false' to disable and allow access to GitHub API endpoints."
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -116,6 +120,7 @@ runs:
         INPUT_TRIGGER_PHRASE: ${{ inputs.trigger_phrase || '' }}
         OPENAI_API_KEY: ${{ inputs.openai_api_key }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        COPILOT_AGENT_FIREWALL_ENABLED: ${{ inputs.copilot_agent_firewall_enabled || 'true' }}
         GITHUB_EVENT_ACTION: ${{ github.event.action || '' }}
         GITHUB_EVENT_LABEL_NAME: ${{ github.event.label.name || '' }}
         GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number || '' }}

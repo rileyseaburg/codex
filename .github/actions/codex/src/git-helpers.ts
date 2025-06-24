@@ -112,7 +112,11 @@ export async function maybePublishPRForIssue(
 
   const sanitizedMessage = lastMessage.replace(/\u2022/g, "-");
   const [summaryLine] = sanitizedMessage.split(/\r?\n/);
-  const branch = ensureOnBranch(issueNumber, [defaultBranch, "master"], summaryLine);
+  const branch = ensureOnBranch(
+    issueNumber,
+    [defaultBranch, "master"],
+    summaryLine,
+  );
   commitIfNeeded(issueNumber);
   pushBranch(branch, githubToken, ctx);
 

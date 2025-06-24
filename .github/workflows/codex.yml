@@ -93,3 +93,4 @@ jobs:
           openai_api_key: ${{ secrets.CODEX_OPENAI_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           codex_home: ./.github/codex/home
+          copilot_agent_firewall_enabled: false

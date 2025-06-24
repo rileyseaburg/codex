@@ -33,6 +33,14 @@ export async function runCodex(
     env.CODEX_HOME = resolveWorkspacePath(INPUT_CODEX_HOME, ctx);
   }
 
+  // Set the firewall configuration
+  const COPILOT_AGENT_FIREWALL_ENABLED = ctx.tryGet(
+    "COPILOT_AGENT_FIREWALL_ENABLED",
+  );
+  if (COPILOT_AGENT_FIREWALL_ENABLED) {
+    env.COPILOT_AGENT_FIREWALL_ENABLED = COPILOT_AGENT_FIREWALL_ENABLED;
+  }
+
   console.log(`Running Codex: ${JSON.stringify(args)}`);
   const result = Bun.spawnSync(args, {
     stdout: "inherit",
